@@ -47,12 +47,12 @@ else:
             project_name = st.text_input("Project Name")
             total_mm = st.number_input("ManMonth (total)", min_value=0, step=1)
             project_type = st.selectbox("Project Type", ["T&M", "Fixed Price", "Other"])
-            scope = st.selectbox("Scope", ["WF1", "WF2", "WF3"])
+            scope = st.selectbox("Scope", ["Simple scope", "Standard scope", "Complicated scope"])
             owner = st.selectbox("PM", options=owner_list)
             start_date = st.date_input("Start Date")
             end_date = st.date_input("End Date")
-            status = st.selectbox("Status", ["Active", "Closed", "Future"])
-            description = st.text_area("Description")
+            status = st.selectbox("Status", ["Active", "In-Active", "Closed"])
+            # description = st.text_area("Description")
             submitted = st.form_submit_button("Save")
 
             if submitted:
@@ -64,11 +64,11 @@ else:
                             text("""
                                 INSERT INTO project_info (
                                     project_key, project_name, total_mm, project_type, scope,
-                                    owner, start_date, end_date, status, description
+                                    owner, start_date, end_date, status
                                 )
                                 VALUES (
                                     :project_key, :project_name, :total_mm, :project_type, :scope,
-                                    :owner, :start_date, :end_date, :status, :description
+                                    :owner, :start_date, :end_date, :status
                                 )
                                 ON CONFLICT (project_key) DO UPDATE
                                 SET project_name = EXCLUDED.project_name,
@@ -78,8 +78,7 @@ else:
                                     owner = EXCLUDED.owner,
                                     start_date = EXCLUDED.start_date,
                                     end_date = EXCLUDED.end_date,
-                                    status = EXCLUDED.status,
-                                    description = EXCLUDED.description;
+                                    status = EXCLUDED.status
                             """),
                             {
                                 "project_key": project_key,
@@ -90,8 +89,7 @@ else:
                                 "owner": owner,
                                 "start_date": start_date,
                                 "end_date": end_date,
-                                "status": status,
-                                "description": description
+                                "status": status
                             }
                         )
                         session.commit()
@@ -120,8 +118,8 @@ else:
                     index=["T&M", "Fixed Price", "Other"].index(current_project.get("project_type", "T&M"))
                 )
                 edit_scope = st.selectbox(
-                    "Scope", ["Work Flow 1", "Work Flow 2", "Work Flow 3"],
-                    index=["Work Flow 1", "Work Flow 2", "Work Flow 3"].index(current_project.get("scope", "Work Flow 1"))
+                    "Scope", ["Simple scope", "Standard scope", "Complicated scope"],
+                    index=["Simple scope", "Standard scope", "Complicated scope"].index(current_project.get("scope", "Simple scope"))
                 )
                 edit_owner = st.selectbox(
                     "Owner", options=owner_list,
@@ -130,10 +128,9 @@ else:
                 edit_start_date = st.date_input("Start Date", value=current_project["start_date"])
                 edit_end_date = st.date_input("End Date", value=current_project["end_date"])
                 edit_status = st.selectbox(
-                    "Status", ["Active", "Closed", "Future"],
-                    index=["Active", "Closed", "Future"].index(current_project.get("status", "Active"))
+                    "Status", ["Active", "In-Active", "Closed"],
+                    index=["Active", "In-Active", "Closed"].index(current_project.get("status", "Active"))
                 )
-                edit_description = st.text_area("Description", value=current_project.get("description", ""))
 
                 if st.form_submit_button("Update Project"):
                     if not edit_project_name:
@@ -151,8 +148,7 @@ else:
                                             owner = :owner,
                                             start_date = :start_date,
                                             end_date = :end_date,
-                                            status = :status,
-                                            description = :description
+                                            status = :status
                                         WHERE project_key = :project_key
                                     """),
                                     {
@@ -164,8 +160,7 @@ else:
                                         "owner": edit_owner,
                                         "start_date": edit_start_date,
                                         "end_date": edit_end_date,
-                                        "status": edit_status,
-                                        "description": edit_description
+                                        "status": edit_status
                                     }
                                 )
                                 session.commit()
