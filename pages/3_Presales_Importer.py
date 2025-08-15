@@ -125,7 +125,7 @@ if uploaded_file:
             'Division': 'division',
             'Division 1 - %': 'division_1_pct',
             'Division 2 - %': 'division_2_pct',
-            'Reasons': 'Reasons'
+            'Reasons': 'reasons'
         })
  
         # Clean date columns
