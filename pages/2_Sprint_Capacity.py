@@ -11,13 +11,8 @@ df = get_data("*", "sprint_info")
 dim_sprint = get_data(col="sprint_name, status, project_key", table_name="dim_sprint")
 
 # ============================ Header ============================
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("📄 Project Management", use_container_width=True):
-        st.switch_page("pages/1_Project_Manage.py")
-with col2:
-    if st.button("✏️ Sprint Capacity", use_container_width=True):
-        st.switch_page("pages/2_Sprint_Capacity.py")
+from utils.header_nav import header_nav
+header_nav(current_page="sprint")
 # ================================================================
 
 if 1 > 10:

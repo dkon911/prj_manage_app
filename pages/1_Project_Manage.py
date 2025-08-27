@@ -6,13 +6,8 @@ from utils.getter import get_data, get_user_data, get_prj_data, clear_form
 st.set_page_config(page_title="Project Info", page_icon="random")
 
 # ============================ Header ============================
-col1, col2 = st.columns(2)
-with col1:
-    if st.button("📄 Project Management", use_container_width=True):
-        st.switch_page("pages/1_Project_Manage.py")
-with col2:
-    if st.button("✏️ Sprint Capacity", use_container_width=True):
-        st.switch_page("pages/2_Sprint_Capacity.py")
+from utils.header_nav import header_nav
+header_nav(current_page="project")
 # ================================================================
 
 # Tạm tắt đăng nhập

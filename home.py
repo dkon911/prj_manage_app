@@ -13,15 +13,7 @@ SmartDev LLC's Project Management App is designed to help you streamline your pr
 collaborate with your team, and achieve your goals faster. Select an option below to get started.
 """)
 
-# Navigation buttons
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    if st.button("📄 Project Management", use_container_width=True):
-        st.switch_page("pages/1_Project_Manage.py")
-
-with col2:
-    if st.button("✏️ Edit Project", use_container_width=True):
-        st.switch_page("pages/2_Edit_Project.py")
+from utils.header_nav import header_nav
+header_nav(current_page="")
 
 

@@ -208,3 +208,5 @@ __marimo__/
 utils/__pycache__/__init__.cpython-310.pyc
 utils/__pycache__/authen.cpython-310.pyc
 utils/__pycache__/getter.cpython-310.pyc
+
+sql/
