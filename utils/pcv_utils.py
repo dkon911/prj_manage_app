@@ -77,15 +77,11 @@ def get_active_projects():
         conn = st.connection("neon", type="sql")
         query = """
             SELECT DISTINCT 
-                p.project_key,
-                p.project_name,
-                ds.sprint_id,
-                ds.sprint_name
-            FROM project_info p
-            LEFT JOIN dim_sprint ds ON p.project_key = ds.project_key 
-                AND LOWER(ds.status) = 'active'
-            WHERE p.status = 'Active'
-            ORDER BY p.project_key
+                project_key,
+                project_name
+            FROM project_info
+            WHERE status = 'Active'
+            ORDER BY project_key
         """
         return conn.query(query)
     except Exception as e:
