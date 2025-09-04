@@ -25,14 +25,12 @@ def get_pcv_data(project_filter="All", division_filter="All", limit=50):
                     fm.pcv_id,
                     fm.project_key,
                     pi.project_name,
-                    ds.sprint_name,
                     COALESCE(fm.division, 'Division 1') as division,
                     fm.pcv_score,
                     fm.assessment_date,
                     fm.updated_at
                 FROM fact_pcv_metrics fm
                 JOIN project_info pi ON fm.project_key = pi.project_key
-                LEFT JOIN dim_sprint ds ON fm.sprint_id = ds.sprint_id
                 WHERE 1=1
             """
         else:
@@ -41,14 +39,12 @@ def get_pcv_data(project_filter="All", division_filter="All", limit=50):
                     fm.pcv_id,
                     fm.project_key,
                     pi.project_name,
-                    ds.sprint_name,
                     'Division 1' as division,
                     fm.pcv_score,
                     fm.assessment_date,
                     fm.updated_at
                 FROM fact_pcv_metrics fm
                 JOIN project_info pi ON fm.project_key = pi.project_key
-                LEFT JOIN dim_sprint ds ON fm.sprint_id = ds.sprint_id
                 WHERE 1=1
             """
         
@@ -98,8 +94,8 @@ def clear_pcv_cache():
     st.cache_data.clear()
     st.cache_resource.clear()
 
-def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessment_date):
-    """Create new PCV assessment with proper sprint handling."""
+def create_pcv_assessment(project_key, division, pcv_score, assessment_date):
+    """Create new PCV assessment - project-based only."""
     try:
         conn = st.connection("neon", type="sql")
         
@@ -115,33 +111,12 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
         has_division = not column_check.empty
         
         with conn.session as session:
-            # Get active sprint for the project if sprint_id is None
-            if sprint_id is None:
-                active_sprint_query = """
-                    SELECT sprint_id FROM dim_sprint 
-                    WHERE project_key = :project_key 
-                    AND LOWER(status) = 'active' 
-                    LIMIT 1
-                """
-                sprint_result = session.execute(
-                    text(active_sprint_query),
-                    {"project_key": project_key}
-                ).fetchone()
-                
-                if sprint_result:
-                    sprint_id = sprint_result[0]
-                    st.info(f"🔄 Auto-assigned to active sprint ID: {sprint_id}")
-                else:
-                    # No active sprint found, allow NULL sprint_id
-                    st.warning("⚠️ No active sprint found. Assessment will be created without sprint association.")
-            
             if has_division:
                 # Check for existing assessment
                 existing_query = """
                     SELECT pcv_id FROM fact_pcv_metrics 
                     WHERE project_key = :project_key 
                     AND COALESCE(division, 'Division 1') = :division
-                    AND (:sprint_id IS NULL OR sprint_id = :sprint_id OR sprint_id IS NULL)
                     AND assessment_date = :assessment_date
                 """
                 
@@ -150,7 +125,6 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
                     {
                         "project_key": project_key,
                         "division": division,
-                        "sprint_id": sprint_id,
                         "assessment_date": assessment_date
                     }
                 ).fetchone()
@@ -158,17 +132,16 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
                 if existing:
                     return False, f"Assessment already exists for {project_key} - {division} on {assessment_date}"
                 
-                # Insert with division and allow NULL sprint_id
+                # Insert with division
                 result = session.execute(
                     text("""
                         INSERT INTO fact_pcv_metrics 
-                        (project_key, sprint_id, division, pcv_score, assessment_date)
-                        VALUES (:project_key, :sprint_id, :division, :pcv_score, :assessment_date)
+                        (project_key, division, pcv_score, assessment_date)
+                        VALUES (:project_key, :division, :pcv_score, :assessment_date)
                         RETURNING pcv_id
                     """),
                     {
                         "project_key": project_key,
-                        "sprint_id": sprint_id,  # Can be None/NULL
                         "division": division,
                         "pcv_score": pcv_score,
                         "assessment_date": assessment_date
@@ -180,12 +153,10 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
                     text("""
                         SELECT pcv_id FROM fact_pcv_metrics 
                         WHERE project_key = :project_key 
-                        AND (:sprint_id IS NULL OR sprint_id = :sprint_id OR sprint_id IS NULL)
                         AND assessment_date = :assessment_date
                     """),
                     {
                         "project_key": project_key,
-                        "sprint_id": sprint_id,
                         "assessment_date": assessment_date
                     }
                 ).fetchone()
@@ -196,13 +167,12 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
                 result = session.execute(
                     text("""
                         INSERT INTO fact_pcv_metrics 
-                        (project_key, sprint_id, pcv_score, assessment_date)
-                        VALUES (:project_key, :sprint_id, :pcv_score, :assessment_date)
+                        (project_key, pcv_score, assessment_date)
+                        VALUES (:project_key, :pcv_score, :assessment_date)
                         RETURNING pcv_id
                     """),
                     {
                         "project_key": project_key,
-                        "sprint_id": sprint_id,  # Can be None/NULL
                         "pcv_score": pcv_score,
                         "assessment_date": assessment_date
                     }
@@ -217,40 +187,71 @@ def create_pcv_assessment(project_key, sprint_id, division, pcv_score, assessmen
             return True, new_id
             
     except Exception as e:
-        error_msg = str(e).lower()
-        if "foreign key" in error_msg and "sprint_id" in error_msg:
-            return False, f"Sprint ID {sprint_id} does not exist. Assessment created without sprint association."
         return False, f"Database error: {str(e)}"
 
-def update_pcv_assessment(pcv_id, pcv_score, assessment_date):
-    """Update existing PCV assessment."""
+def update_pcv_assessment(pcv_id, pcv_score, assessment_date, division=None):
+    """Update existing PCV assessment including division."""
     try:
         conn = st.connection("neon", type="sql")
         
+        # Check if division column exists
+        check_column_query = """
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'fact_pcv_metrics' 
+            AND column_name = 'division'
+        """
+        
+        column_check = conn.query(check_column_query)
+        has_division = not column_check.empty
+        
         with conn.session as session:
-            session.execute(
-                text("""
-                    UPDATE fact_pcv_metrics 
-                    SET pcv_score = :pcv_score,
-                        assessment_date = :assessment_date,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE pcv_id = :pcv_id
-                """),
-                {
-                    "pcv_id": pcv_id,
-                    "pcv_score": pcv_score,
-                    "assessment_date": assessment_date
-                }
-            )
+            if has_division and division is not None:
+                # Update with division column
+                session.execute(
+                    text("""
+                        UPDATE fact_pcv_metrics 
+                        SET pcv_score = :pcv_score,
+                            assessment_date = :assessment_date,
+                            division = :division,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE pcv_id = :pcv_id
+                    """),
+                    {
+                        "pcv_id": pcv_id,
+                        "pcv_score": pcv_score,
+                        "assessment_date": assessment_date,
+                        "division": division
+                    }
+                )
+                success_msg = f"Assessment updated successfully! Division: {division}"
+            else:
+                # Update without division column (fallback)
+                session.execute(
+                    text("""
+                        UPDATE fact_pcv_metrics 
+                        SET pcv_score = :pcv_score,
+                            assessment_date = :assessment_date,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE pcv_id = :pcv_id
+                    """),
+                    {
+                        "pcv_id": pcv_id,
+                        "pcv_score": pcv_score,
+                        "assessment_date": assessment_date
+                    }
+                )
+                success_msg = "Assessment updated successfully! (Note: Division not updated - column doesn't exist)"
+            
             session.commit()
             
             # Clear cache after successful update
             clear_pcv_cache()
             
-            return True, "Assessment updated successfully!"
+            return True, success_msg
             
     except Exception as e:
-        return False, str(e)
+        return False, f"Update failed: {str(e)}"
 
 def delete_pcv_assessment(pcv_id):
     """Delete PCV assessment."""
@@ -295,7 +296,7 @@ def get_recent_assessments(project_key, limit=5):
         
         if has_division:
             query = """
-                SELECT pcv_id, sprint_id, COALESCE(division, 'Division 1') as division, pcv_score, assessment_date
+                SELECT pcv_id, COALESCE(division, 'Division 1') as division, pcv_score, assessment_date
                 FROM fact_pcv_metrics 
                 WHERE project_key = :project_key 
                 ORDER BY assessment_date DESC, pcv_id DESC 
@@ -303,7 +304,7 @@ def get_recent_assessments(project_key, limit=5):
             """
         else:
             query = """
-                SELECT pcv_id, sprint_id, 'Division 1' as division, pcv_score, assessment_date
+                SELECT pcv_id, 'Division 1' as division, pcv_score, assessment_date
                 FROM fact_pcv_metrics 
                 WHERE project_key = :project_key 
                 ORDER BY assessment_date DESC, pcv_id DESC 

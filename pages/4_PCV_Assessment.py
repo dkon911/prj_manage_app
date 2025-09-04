@@ -70,7 +70,6 @@ if True:
                 "pcv_id": st.column_config.NumberColumn("ID", width="small"),
                 "project_key": st.column_config.TextColumn("Project", width="small"),
                 "project_name": st.column_config.TextColumn("Project Name"),
-                "sprint_name": st.column_config.TextColumn("Sprint"),
                 "division": st.column_config.TextColumn("Division", width="small"),
                 "pcv_score": st.column_config.NumberColumn("PCV Score", format="%.1f%%"),
                 "assessment_date": st.column_config.DateColumn("Assessment Date"),
@@ -127,7 +126,7 @@ if True:
                     elif pcv_score < 0 or pcv_score > 100:
                         st.error("❌ PCV score must be between 0-100")
                     else:
-                        success, result = create_pcv_assessment(project_key, None, division, pcv_score, assessment_date)
+                        success, result = create_pcv_assessment(project_key, division, pcv_score, assessment_date)
                         
                         if success:
                             st.success(f"✅ PCV Assessment created successfully! (ID: {result})")
@@ -161,8 +160,7 @@ if True:
             # Select record to update
             update_options = []
             for _, row in pcv_df_update.iterrows():
-                sprint_info = f" - {row['sprint_name']}" if row['sprint_name'] else ""
-                update_options.append(f"{row['pcv_id']}: {row['project_key']} - {row['division']}{sprint_info} - {row['pcv_score']}% ({row['assessment_date']})")
+                update_options.append(f"{row['pcv_id']}: {row['project_key']} - {row['division']} - {row['pcv_score']}% ({row['assessment_date']})")
             
             selected_record = st.selectbox("Select Assessment to Update", [""] + update_options)
             
@@ -175,9 +173,9 @@ if True:
                     
                     with col1:
                         st.text_input("Project", value=f"{current_record['project_key']} - {current_record['project_name']}", disabled=True)
-                        st.text_input("Division", value=current_record['division'], disabled=True)
-                        if current_record['sprint_name']:
-                            st.text_input("Sprint", value=current_record['sprint_name'], disabled=True)
+                        # Allow division to be updated
+                        new_division = st.selectbox("Division *", ["Division 1", "Division 2"], 
+                                                   index=0 if current_record['division'] == "Division 1" else 1)
                     
                     with col2:
                         new_pcv_score = st.number_input("PCV Score (%)", min_value=0.0, max_value=100.0, 
@@ -185,7 +183,8 @@ if True:
                         new_assessment_date = st.date_input("Assessment Date", value=current_record['assessment_date'])
                     
                     if st.form_submit_button("Update Assessment", type="primary"):
-                        success, message = update_pcv_assessment(pcv_id, new_pcv_score, new_assessment_date)
+                        # Pass division parameter to update function
+                        success, message = update_pcv_assessment(pcv_id, new_pcv_score, new_assessment_date, new_division)
                         
                         if success:
                             st.success(f"✅ {message}")
@@ -203,8 +202,7 @@ if True:
             # Select record to delete
             delete_options = []
             for _, row in pcv_df_delete.iterrows():
-                sprint_info = f" - {row['sprint_name']}" if row['sprint_name'] else ""
-                delete_options.append(f"{row['pcv_id']}: {row['project_key']} - {row['division']}{sprint_info} - {row['pcv_score']}% ({row['assessment_date']})")
+                delete_options.append(f"{row['pcv_id']}: {row['project_key']} - {row['division']} - {row['pcv_score']}% ({row['assessment_date']})")
             
             selected_delete = st.selectbox("Select Assessment to Delete", [""] + delete_options)
             
@@ -214,14 +212,12 @@ if True:
                 
                 # Show record details
                 st.warning("⚠️ You are about to delete:")
-                col1, col2, col3, col4 = st.columns(4)
+                col1, col2, col3 = st.columns(3)
                 with col1:
                     st.write(f"**Project:** {current_record['project_key']}")
                 with col2:
                     st.write(f"**Division:** {current_record['division']}")
                 with col3:
-                    st.write(f"**Sprint:** {current_record['sprint_name'] or 'N/A'}")
-                with col4:
                     st.write(f"**PCV Score:** {current_record['pcv_score']}%")
                 
                 # Confirmation
