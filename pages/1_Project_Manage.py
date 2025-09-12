@@ -195,6 +195,4 @@ def show_project_management():
                 st.success(f"Deleted project: {project_to_delete}")
                 st.rerun()
 
-# --- Entry Point ---
-# This ensures that the authentication check is run before any other code on the page.
 show_project_management()
