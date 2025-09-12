@@ -1,19 +1,21 @@
 import streamlit as st
+from utils.authen import login_form
 
-# Set the page title and layout
-st.set_page_config(page_title="SmartDev LLC - Project Management", layout="centered")
+st.set_page_config(
+    page_title="Home",
+    page_icon="🏠",
+)
 
-# Landing page header
-st.title("Welcome to SmartDev LLC's Project Management App")
-st.subheader("Effortlessly manage your projects with ease and efficiency!")
+# Display the login form. The logic within login_form handles session state.
+login_form()
 
-# Add a brief description
-st.write("""
-SmartDev LLC's Project Management App is designed to help you streamline your project workflows, 
-collaborate with your team, and achieve your goals faster. Select an option below to get started.
-""")
+# --- Main Page Content ---
+# This content is only shown after a successful login.
 
-from utils.header_nav import header_nav
-header_nav(current_page="")
-
-
+if st.session_state.get("logged_in"):
+    st.title("Welcome to the App!")
+    st.write(f"You are logged in as **{st.session_state.user_email}** with role **{st.session_state.user_role}** and name **{st.session_state.user_name}**.")
+    st.write("Navigate to other pages using the sidebar.")
+else:
+    # Optional: You can add a message on the home page for users who are not logged in.
+    st.info("Please enter your credentials to log in.")
