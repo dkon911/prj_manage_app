@@ -56,7 +56,7 @@ def show_project_management():
         if user_role != 'admin':
             st.error("You do not have permission to add projects.")
             st.stop()
-            
+
         owner_list = get_user_data()
         project_key_list = get_prj_data()
         st.subheader("Add Project")

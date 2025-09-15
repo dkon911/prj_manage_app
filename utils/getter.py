@@ -8,6 +8,12 @@ def get_data(col=str, table_name=str):
 
 @st.cache_data
 def get_user_data():
+    """
+    Fetch user data from the database.
+
+    Returns:
+        list: A list of user names.
+    """    
     try:
         conn = st.connection("neon", type="sql")
         query_result = conn.query("SELECT user_name FROM dim_user WHERE user_name IS NOT NULL", ttl=1)
