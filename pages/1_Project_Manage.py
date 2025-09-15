@@ -1,10 +1,10 @@
 import streamlit as st
 from sqlalchemy import text
-from utils.authen import require_role
+from utils.auth import require_role, login_form
 from utils.getter import get_data, get_user_data, get_prj_data, clear_form
 
 st.set_page_config(page_title="Project Info", page_icon="random")
-
+login_form()
 # ============================ Header ============================
 from utils.header_nav import header_nav
 header_nav(current_page="project")
@@ -25,7 +25,6 @@ def show_project_management():
         get_data.clear()
         st.rerun()
 
-    # --- Data Filtering based on Role ---
     user_role = st.session_state.get("user_role")
     user_name = st.session_state.get("user_name")
     
@@ -41,13 +40,11 @@ def show_project_management():
 
     if df is None or df.empty:
         st.warning("No projects found.")
-        # Still allow admins to add projects even if none are found
         if user_role != 'admin':
             st.stop()
     
     st.dataframe(df, use_container_width=True)
     
-    # --- CRUD Actions ---
     # Only admins can Add/Delete. Managers can only Edit.
     if user_role == 'admin':
         page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
