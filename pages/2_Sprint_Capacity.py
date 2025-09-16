@@ -12,12 +12,12 @@ from utils.header_nav import header_nav
 header_nav(current_page="sprint")
 # ================================================================
 
-@require_role(allowed_roles=['admin', 'manager'])
+@require_role(allowed_roles=['admin', 'manager', 'pm'])
 def show_sprint_management():
     """
     Sprint Management page.
     - Admin: view + CRUD all sprints.
-    - Manager: view + CRUD only sprints of projects they own.
+    - pm: view + CRUD only sprints of projects they own.
     """
     conn = st.connection("neon", type="sql")
     user_role = st.session_state.get("user_role")
@@ -36,12 +36,12 @@ def show_sprint_management():
     # Fetch projects accessible to the user
     # ------------------------------------------------------------
     try:
-        if user_role == 'admin':
+        if user_role in ['admin', 'manager']:
             prj_df = conn.query("SELECT project_key, project_name, owner FROM project_info;")
             sprint_df = get_data("*", "sprint_info")
             dim_sprint = get_data(col="sprint_name, status, project_key", table_name="dim_sprint")
 
-        elif user_role == 'manager':
+        elif user_role == 'pm':
             prj_df = conn.query(
                 "SELECT project_key, project_name, owner FROM project_info WHERE owner = :owner_name;",
                 params={"owner_name": user_name}
@@ -190,7 +190,7 @@ def show_sprint_management():
 
             if st.button("Delete sprint"):
                 try:
-                    if user_role == 'manager':
+                    if user_role == 'pm':
                         allowed_projects = prj_df['project_key'].tolist()
                         if project_key_selected not in allowed_projects:
                             st.error("You don't have permission to delete this sprint.")

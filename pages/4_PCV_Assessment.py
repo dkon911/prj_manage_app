@@ -13,7 +13,7 @@ st.set_page_config(page_title="PCV Assessment", page_icon="📊", layout="wide")
 
 header_nav(current_page="pcv")
 
-@require_role(allowed_roles=['admin', 'manager'])
+@require_role(allowed_roles=['admin'])
 def show_pcv_page():
     st.title("📊 Process Compliance Verification (PCV)")
     st.markdown("---")
@@ -24,7 +24,7 @@ def show_pcv_page():
 
     # --- Get projects for the current user ---
     owned_project_keys = []
-    if user_role == 'manager':
+    if user_role == 'pm':
         owned_projects_df = conn.query("SELECT project_key FROM project_info WHERE owner = :owner_email;", params={"owner_email": user_name})
         if not owned_projects_df.empty:
             owned_project_keys = owned_projects_df['project_key'].tolist()
@@ -38,7 +38,7 @@ def show_pcv_page():
     # Filters
     col1, col2, col3 = st.columns(3)
     projects_df = get_active_projects()
-    if user_role == 'manager':
+    if user_role == 'pm':
         projects_df = projects_df[projects_df['project_key'].isin(owned_project_keys)]
 
     project_options = ["All"] + list(projects_df['project_key'].unique()) if not projects_df.empty else ["All"]
@@ -48,7 +48,7 @@ def show_pcv_page():
 
     # Fetch data according to role and filters
     pcv_df = get_pcv_data(project_filter, division_filter, limit)
-    if user_role == 'manager':
+    if user_role == 'pm':
         pcv_df = pcv_df[pcv_df['project_key'].isin(owned_project_keys)]
 
     if pcv_df.empty:
@@ -69,7 +69,7 @@ def show_pcv_page():
     tab1, tab2, tab3, tab4 = st.tabs(["➕ Create", "✏️ Update", "🗑️ Delete", "📈 Analytics"])
     
     crud_projects_df = get_active_projects()
-    if user_role == 'manager':
+    if user_role == 'pm':
         crud_projects_df = crud_projects_df[crud_projects_df['project_key'].isin(owned_project_keys)]
 
     with tab1:
@@ -94,7 +94,7 @@ def show_pcv_page():
                         st.error(f"❌ {result}")
 
     pcv_crud_df = get_pcv_data("All", "All", 500)
-    if user_role == 'manager':
+    if user_role == 'pm':
         pcv_crud_df = pcv_crud_df[pcv_crud_df['project_key'].isin(owned_project_keys)]
 
     with tab2:
@@ -137,7 +137,7 @@ def show_pcv_page():
     with tab4:
         st.subheader("📈 Analytics & Insights")
         analytics_df = get_pcv_data("All", "All", 500)
-        if user_role == 'manager':
+        if user_role == 'pm':
             analytics_df = analytics_df[analytics_df['project_key'].isin(owned_project_keys)]
         
         if analytics_df.empty:
@@ -145,7 +145,7 @@ def show_pcv_page():
         else:
             st.subheader("🏢 Division Comparison")
             division_stats = get_pcv_stats_by_division()
-            if user_role == 'manager':
+            if user_role == 'pm':
                 division_stats = division_stats[division_stats['division'].isin(analytics_df['division'].unique())]
             st.dataframe(division_stats, use_container_width=True)
 

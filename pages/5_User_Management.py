@@ -15,7 +15,7 @@ def create_account_page():
         email = st.text_input("Email")
         username = st.selectbox("Username", options=get_user_data())
         password = st.text_input("Password", type="password")
-        role = st.selectbox("Role", ["admin", "manager"])
+        role = st.selectbox("Role", ["admin", "manager", "pm"])
         submitted = st.form_submit_button("Create Account", type="primary")
 
         if submitted:
@@ -49,7 +49,7 @@ def create_account_page():
         current_user = users_df[users_df["email"] == selected_email].iloc[0]
         with st.form("update_user_form"):
             new_username = st.text_input("Username", value=current_user["username"])
-            new_role = st.selectbox("Role", ["admin", "manager"], index=["admin", "manager"].index(current_user["role"]))
+            new_role = st.selectbox("Role", ["admin", "manager", "pm"], index=["admin", "manager", "pm"].index(current_user["role"]))
             new_password = st.text_input("New Password (leave blank to keep current)", type="password")
             update_submitted = st.form_submit_button("Update Account", type="primary")
             delete_submitted = st.form_submit_button("Delete Account", type="secondary")

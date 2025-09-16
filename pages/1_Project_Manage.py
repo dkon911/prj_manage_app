@@ -10,7 +10,7 @@ from utils.header_nav import header_nav
 header_nav(current_page="project")
 # ================================================================
 
-@require_role(allowed_roles=['admin', 'manager'])
+@require_role(allowed_roles=['admin', 'manager', 'pm'])
 def show_project_management():
     """
     Main function to display the project management page.
@@ -29,31 +29,31 @@ def show_project_management():
     user_name = st.session_state.get("user_name")
     
     df = None
-    if user_role == 'admin':
+    if user_role in ['admin', 'manager']:
         df = get_data("*", "project_info")
-    elif user_role == 'manager':
-        # Assumes the 'owner' column in 'project_info' stores the manager's email  
+    elif user_role == 'pm':
+        # Assumes the 'owner' column in 'project_info' stores the pm's email  
         df = conn.query(
-            "SELECT * FROM project_info WHERE owner = :owner_email;",
-            params={"owner_email": user_name}
+            "SELECT * FROM project_info WHERE owner = :user_name;",
+            params={"user_name": user_name}
         )
 
     if df is None or df.empty:
         st.warning("No projects found.")
-        if user_role != 'admin':
+        if user_role not in ['admin', 'manager']:
             st.stop()
     
     st.dataframe(df, use_container_width=True)
     
-    # Only admins can Add/Delete. Managers can only Edit.
-    if user_role == 'admin':
+    # Only admins can Add/Delete. pms can only Edit.
+    if user_role in ['admin', 'manager']:
         page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
-    else: # manager
+    else: # pm
         page_option = st.selectbox("Choose action:", ["Edit Project"])
 
     # -------------------- Add Project --------------------
     if page_option == "Add Project":
-        if user_role != 'admin':
+        if user_role not in ['admin', 'manager']:
             st.error("You do not have permission to add projects.")
             st.stop()
 
@@ -133,8 +133,8 @@ def show_project_management():
                     "Scope", ["Simple Workflow", "Standard Workflow", "Complicated Workflow"],
                     index=["Simple Workflow", "Standard Workflow", "Complicated Workflow"].index(current_project.get("scope", "Simple Workflow"))
                 )
-                # Admin can change owner, manager cannot
-                can_change_owner = user_role == 'admin'
+                # Admin and Manager can change owner, pm cannot
+                can_change_owner = user_role in ['admin', 'manager']
                 edit_owner = st.selectbox(
                     "Owner", options=owner_list,
                     index=owner_list.index(current_project.get("owner", owner_list[0])),
@@ -174,7 +174,7 @@ def show_project_management():
 
     # -------------------- Delete Project --------------------
     elif page_option == "Delete Project":
-        if user_role != 'admin':
+        if user_role not in ['admin', 'manager']:
             st.error("You do not have permission to delete projects.")
             st.stop()
 
