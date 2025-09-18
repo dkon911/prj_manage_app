@@ -170,7 +170,7 @@ def show_project_management():
 
     # -------------------- Delete Project (Soft Delete) --------------------
     elif page_option == "Delete Project":
-        st.subheader("🗑 Delete Project (Soft Delete)")
+        st.subheader("🗑 Delete Project")
         if not df.empty:
             project_to_delete = st.selectbox("Select project to delete:", df["project_key"].tolist())
             if st.button("Delete project"):
