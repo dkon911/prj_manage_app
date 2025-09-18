@@ -73,7 +73,7 @@ def login_form():
             except Exception:
                 pass
     if st.session_state.logged_in:
-        st.sidebar.success(f"Welcome {st.session_state.user_name}!")
+        st.sidebar.success(f"Welcome > {st.session_state.user_role} < {st.session_state.user_name}!")
         if st.sidebar.button("Logout"):
             logout(cookies)
         return True

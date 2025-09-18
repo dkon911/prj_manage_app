@@ -1,10 +1,14 @@
 import streamlit as st
 from sqlalchemy import text
 from utils.auth import require_role, login_form
-from utils.getter import get_data, get_user_data, get_prj_data, clear_form
+from utils.getter import (
+    get_data, get_user_data, get_prj_data, clear_form
+)
+from utils.getter import clear_project_cache
 
-st.set_page_config(page_title="Project Info", page_icon="random")
+st.set_page_config(page_title="Project Info", page_icon="📂")
 login_form()
+
 # ============================ Header ============================
 from utils.header_nav import header_nav
 header_nav(current_page="project")
@@ -12,29 +16,24 @@ header_nav(current_page="project")
 
 @require_role(allowed_roles=['admin', 'manager', 'pm'])
 def show_project_management():
-    """
-    Main function to display the project management page.
-    Data is filtered based on the user's role.
-    """
     conn = st.connection("neon", type="sql")
 
-    st.title("SMD Project Management")
+    st.title("📂 SMD Project Management")
     st.write("Manage projects and their details here.")
     
-    if st.button("Refresh"):
-        get_data.clear()
+    if st.button("🔄 Refresh"):
+        clear_project_cache()
         st.rerun()
 
     user_role = st.session_state.get("user_role")
     user_name = st.session_state.get("user_name")
-    
-    df = None
+
+    # -------------------- Load project data --------------------
     if user_role in ['admin', 'manager']:
-        df = get_data("*", "project_info")
-    elif user_role == 'pm':
-        # Assumes the 'owner' column in 'project_info' stores the pm's email  
+        df = get_data("project_key, project_name, total_mm, project_type, scope, status, owner, start_date, end_date, created_at, updated_at", "project_info WHERE is_deleted = FALSE")
+    else:  # pm
         df = conn.query(
-            "SELECT * FROM project_info WHERE owner = :user_name;",
+            "SELECT project_key, project_name, total_mm, project_type, scope, owner, status, start_date, end_date, created_at, updated_at FROM project_info WHERE is_deleted = FALSE AND owner = :user_name",
             params={"user_name": user_name}
         )
 
@@ -42,24 +41,21 @@ def show_project_management():
         st.warning("No projects found.")
         if user_role not in ['admin', 'manager']:
             st.stop()
-    
-    st.dataframe(df, use_container_width=True)
-    
-    # Only admins can Add/Delete. pms can only Edit.
-    if user_role in ['admin', 'manager']:
-        page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
-    else: # pm
-        page_option = st.selectbox("Choose action:", ["Edit Project"])
+
+    st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # -------------------- Role-based actions --------------------
+    page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
+    # if user_role in ['admin', 'manager', 'pm']:
+    #     page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
+    # else:
+    #     page_option = st.selectbox("Choose action:", ["Edit Project"])
 
     # -------------------- Add Project --------------------
     if page_option == "Add Project":
-        if user_role not in ['admin', 'manager']:
-            st.error("You do not have permission to add projects.")
-            st.stop()
-
         owner_list = get_user_data()
         project_key_list = get_prj_data()
-        st.subheader("Add Project")
+        st.subheader("➕ Add Project")
 
         with st.form("add_project"):
             project_key = st.selectbox("Project Key", options=project_key_list, key="add_selector")
@@ -67,26 +63,26 @@ def show_project_management():
             total_mm = st.number_input("ManMonth (total)", min_value=0, step=1)
             project_type = st.selectbox("Project Type", ["T&M", "Fixed Price", "Other"])
             scope = st.selectbox("Workflow Type", ["Simple Workflow", "Standard Workflow", "Complicated Workflow"])
-            owner = st.selectbox("PM", options=owner_list)
+            owner = st.selectbox("PM", options=owner_list, index=owner_list.index(user_name), disabled=(user_role == 'pm'))
             start_date = st.date_input("Start Date")
             end_date = st.date_input("End Date")
             status = st.selectbox("Status", ["Active", "In-Active", "Closed"])
-            submitted = st.form_submit_button("Save")
+            submitted = st.form_submit_button("💾 Save")
 
             if submitted:
                 if not project_key or not project_name:
-                    st.error("Project Key and Project Name are required!")
+                    st.error("⚠️ Project Key and Project Name are required!")
                 else:
                     with conn.session as session:
                         session.execute(
                             text('''
                                 INSERT INTO project_info (
                                     project_key, project_name, total_mm, project_type, scope,
-                                    owner, start_date, end_date, status
+                                    owner, start_date, end_date, status, is_deleted
                                 )
                                 VALUES (
                                     :project_key, :project_name, :total_mm, :project_type, :scope,
-                                    :owner, :start_date, :end_date, :status
+                                    :owner, :start_date, :end_date, :status, FALSE
                                 )
                                 ON CONFLICT (project_key) DO UPDATE
                                 SET project_name = EXCLUDED.project_name,
@@ -96,7 +92,8 @@ def show_project_management():
                                     owner = EXCLUDED.owner,
                                     start_date = EXCLUDED.start_date,
                                     end_date = EXCLUDED.end_date,
-                                    status = EXCLUDED.status
+                                    status = EXCLUDED.status,
+                                    is_deleted = FALSE
                             '''),
                             {
                                 "project_key": project_key, "project_name": project_name, "total_mm": total_mm,
@@ -105,14 +102,14 @@ def show_project_management():
                             }
                         )
                         session.commit()
-                        get_data.clear()
+                        clear_project_cache()
                         clear_form()
-                    st.success("Project saved!")
+                    st.success("✅ Project saved!")
                     st.rerun()
 
     # -------------------- Edit Project --------------------
     elif page_option == "Edit Project":
-        st.subheader("Edit Existing Project")
+        st.subheader("✏️ Edit Existing Project")
         if not df.empty:
             project_to_edit = st.selectbox("Select project to edit:", df["project_key"].tolist(), key="edit_selector")
             current_project = df[df["project_key"] == project_to_edit].iloc[0]
@@ -133,7 +130,6 @@ def show_project_management():
                     "Scope", ["Simple Workflow", "Standard Workflow", "Complicated Workflow"],
                     index=["Simple Workflow", "Standard Workflow", "Complicated Workflow"].index(current_project.get("scope", "Simple Workflow"))
                 )
-                # Admin and Manager can change owner, pm cannot
                 can_change_owner = user_role in ['admin', 'manager']
                 edit_owner = st.selectbox(
                     "Owner", options=owner_list,
@@ -149,7 +145,7 @@ def show_project_management():
 
                 if st.form_submit_button("Update Project"):
                     if not edit_project_name:
-                        st.error("Project Name is required!")
+                        st.error("⚠️ Project Name is required!")
                     else:
                         with conn.session as session:
                             session.execute(
@@ -158,7 +154,7 @@ def show_project_management():
                                     SET project_name = :project_name, total_mm = :total_mm,
                                         project_type = :project_type, scope = :scope, owner = :owner,
                                         start_date = :start_date, end_date = :end_date, status = :status
-                                    WHERE project_key = :project_key
+                                    WHERE project_key = :project_key AND is_deleted = FALSE
                                 '''),
                                 {
                                     "project_key": project_to_edit, "project_name": edit_project_name,
@@ -168,28 +164,24 @@ def show_project_management():
                                 }
                             )
                             session.commit()
-                            get_data.clear()
-                        st.success(f"Project {project_to_edit} updated successfully!")
+                            clear_project_cache()
+                        st.success(f"✅ Project {project_to_edit} updated successfully!")
                         st.rerun()
 
-    # -------------------- Delete Project --------------------
+    # -------------------- Delete Project (Soft Delete) --------------------
     elif page_option == "Delete Project":
-        if user_role not in ['admin', 'manager']:
-            st.error("You do not have permission to delete projects.")
-            st.stop()
-
-        st.subheader("Delete Project")
+        st.subheader("🗑 Delete Project (Soft Delete)")
         if not df.empty:
             project_to_delete = st.selectbox("Select project to delete:", df["project_key"].tolist())
             if st.button("Delete project"):
                 with conn.session as session:
                     session.execute(
-                        text("DELETE FROM project_info WHERE project_key = :project_key"),
+                        text("UPDATE project_info SET is_deleted = TRUE WHERE project_key = :project_key"),
                         {"project_key": project_to_delete}
                     )
                     session.commit()
-                    get_data.clear()
-                st.success(f"Deleted project: {project_to_delete}")
+                    clear_project_cache()
+                st.success(f"🚮 Project {project_to_delete} deleted.")
                 st.rerun()
 
 show_project_management()

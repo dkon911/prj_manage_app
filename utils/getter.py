@@ -41,3 +41,22 @@ def clear_form():
     st.session_state["project_name"] = ""
     st.session_state["total_mm"] = 0.0
     st.session_state["description"] = ""
+
+
+def clear_project_cache():
+    """Clear cached data for project management and global caches."""
+    # Clear function-level caches
+    try:
+        get_data.clear()
+    except Exception:
+        pass
+    try:
+        get_user_data.clear()
+    except Exception:
+        pass
+    # Clear global caches to be safe (align with PCV behavior)
+    try:
+        st.cache_data.clear()
+        st.cache_resource.clear()
+    except Exception:
+        pass

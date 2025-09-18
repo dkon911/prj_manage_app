@@ -13,7 +13,7 @@ st.set_page_config(page_title="PCV Assessment", page_icon="📊", layout="wide")
 
 header_nav(current_page="pcv")
 
-@require_role(allowed_roles=['admin'])
+@require_role(allowed_roles=['admin', 'manager', 'pm'])
 def show_pcv_page():
     st.title("📊 Process Compliance Verification (PCV)")
     st.markdown("---")
