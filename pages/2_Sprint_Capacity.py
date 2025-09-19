@@ -70,7 +70,7 @@ def show_sprint_management():
 
     # Show sprints table
     st.subheader("Sprint list")
-    st.dataframe(sprint_df, use_container_width=True)
+    st.dataframe(sprint_df, use_container_width=True, hide_index=True)
 
     # --- Helper ---
     def format_sprint_row(row):

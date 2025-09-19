@@ -161,7 +161,7 @@ def show_pcv_page():
             "pcv_score": st.column_config.NumberColumn("PCV Score", format="%.1f%%"),
             "assessment_date": st.column_config.DateColumn("Assessment Date"),
             "updated_at": st.column_config.DatetimeColumn("Last Updated"),
-        })
+        }, hide_index=True)
 
     st.markdown("---")
     
