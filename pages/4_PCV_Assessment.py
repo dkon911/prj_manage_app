@@ -13,60 +13,11 @@ st.set_page_config(page_title="PCV Assessment", page_icon="📊", layout="wide")
 
 header_nav(current_page="pcv")
 
-@require_role(allowed_roles=['admin', 'manager', 'pm'])
-def show_pcv_page():
-    st.title("📊 Process Compliance Verification (PCV)")
-    st.markdown("---")
 
-    user_role = st.session_state.get("user_role")
-    user_name = st.session_state.get("user_name")
-    conn = st.connection("neon", type="sql")
-
-    # --- Get projects for the current user ---
-    owned_project_keys = []
-    if user_role == 'pm':
-        owned_projects_df = conn.query("SELECT project_key FROM project_info WHERE owner = :owner_email;", params={"owner_email": user_name})
-        if not owned_projects_df.empty:
-            owned_project_keys = owned_projects_df['project_key'].tolist()
-
-    if st.button("🔄 Refresh Data"):
-        clear_pcv_cache()
-        st.rerun()
-
-    st.subheader("📋 Current PCV Assessments")
-    
-    # Filters
-    col1, col2, col3 = st.columns(3)
-    projects_df = get_active_projects()
-    if user_role == 'pm':
-        projects_df = projects_df[projects_df['project_key'].isin(owned_project_keys)]
-
-    project_options = ["All"] + list(projects_df['project_key'].unique()) if not projects_df.empty else ["All"]
-    project_filter = col1.selectbox("Filter by Project", project_options, key="main_filter")
-    division_filter = col2.selectbox("Filter by Division", ["All", "Division 1", "Division 2"], key="division_filter")
-    limit = col3.number_input("Show records", min_value=10, max_value=500, value=50, step=10, key="main_limit")
-
-    # Fetch data according to role and filters
-    pcv_df = get_pcv_data(project_filter, division_filter, limit)
-    if user_role == 'pm':
-        pcv_df = pcv_df[pcv_df['project_key'].isin(owned_project_keys)]
-
-    if pcv_df.empty:
-        st.info("No PCV assessments found. Create your first assessment below!")
-    else:
-        st.dataframe(pcv_df, use_container_width=True, column_config={
-            "pcv_id": st.column_config.NumberColumn("ID", width="small"),
-            "project_key": st.column_config.TextColumn("Project", width="small"),
-            "project_name": st.column_config.TextColumn("Project Name"),
-            "division": st.column_config.TextColumn("Division", width="small"),
-            "pcv_score": st.column_config.NumberColumn("PCV Score", format="%.1f%%"),
-            "assessment_date": st.column_config.DateColumn("Assessment Date"),
-            "updated_at": st.column_config.DatetimeColumn("Last Updated"),
-        })
-
-    st.markdown("---")
-
-    tab1, tab2, tab3, tab4 = st.tabs(["➕ Create", "✏️ Update", "🗑️ Delete", "📈 Analytics"])
+@require_role(["admin"])
+def action_button(user_role, owned_project_keys, tab1, tab2, tab3, tab4):
+    """ Action buttons for CRUD operations and analytics tabs.
+    """
     
     crud_projects_df = get_active_projects()
     if user_role == 'pm':
@@ -159,5 +110,62 @@ def show_pcv_page():
                 st.dataframe(recent_df, use_container_width=True)
             else:
                 st.info("No recent assessments found.")
+
+
+@require_role(allowed_roles=['admin', 'manager', 'pm'])
+def show_pcv_page():
+    st.title("📊 Process Compliance Verification (PCV)")
+    st.markdown("---")
+
+    user_role = st.session_state.get("user_role")
+    user_name = st.session_state.get("user_name")
+    conn = st.connection("neon", type="sql")
+
+    # --- Get projects for the current user ---
+    owned_project_keys = []
+    if user_role == 'pm':
+        owned_projects_df = conn.query("SELECT project_key FROM project_info WHERE owner = :owner_email;", params={"owner_email": user_name})
+        if not owned_projects_df.empty:
+            owned_project_keys = owned_projects_df['project_key'].tolist()
+
+    if st.button("🔄 Refresh Data"):
+        clear_pcv_cache()
+        st.rerun()
+
+    st.subheader("📋 Current PCV Assessments")
+    
+    # Filters
+    col1, col2, col3 = st.columns(3)
+    projects_df = get_active_projects()
+    if user_role == 'pm':
+        projects_df = projects_df[projects_df['project_key'].isin(owned_project_keys)]
+
+    project_options = ["All"] + list(projects_df['project_key'].unique()) if not projects_df.empty else ["All"]
+    project_filter = col1.selectbox("Filter by Project", project_options, key="main_filter")
+    division_filter = col2.selectbox("Filter by Division", ["All", "Division 1", "Division 2"], key="division_filter")
+    limit = col3.number_input("Show records", min_value=10, max_value=500, value=50, step=10, key="main_limit")
+
+    # Fetch data according to role and filters
+    pcv_df = get_pcv_data(project_filter, division_filter, limit)
+    if user_role == 'pm':
+        pcv_df = pcv_df[pcv_df['project_key'].isin(owned_project_keys)]
+
+    if pcv_df.empty:
+        st.info("No PCV assessments found. Create your first assessment below!")
+    else:
+        st.dataframe(pcv_df, use_container_width=True, column_config={
+            "pcv_id": st.column_config.NumberColumn("ID", width="small"),
+            "project_key": st.column_config.TextColumn("Project", width="small"),
+            "project_name": st.column_config.TextColumn("Project Name"),
+            "division": st.column_config.TextColumn("Division", width="small"),
+            "pcv_score": st.column_config.NumberColumn("PCV Score", format="%.1f%%"),
+            "assessment_date": st.column_config.DateColumn("Assessment Date"),
+            "updated_at": st.column_config.DatetimeColumn("Last Updated"),
+        })
+
+    st.markdown("---")
+    
+    tab1, tab2, tab3, tab4 = st.tabs(["➕ Create", "✏️ Update", "🗑️ Delete", "📈 Analytics"])
+    action_button(user_role, owned_project_keys, tab1, tab2, tab3, tab4)
 
 show_pcv_page()
