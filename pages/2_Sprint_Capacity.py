@@ -1,12 +1,12 @@
-# sprint_management.py
 import streamlit as st
 import pandas as pd
 from sqlalchemy import text
 from utils.auth import require_role, login_form
 from utils.getter import get_data
 
-st.set_page_config(page_title="Sprint Capacity", page_icon="random")
+st.set_page_config(page_title="Sprint Capacity", page_icon="📊")
 login_form()
+
 # ============================ Header ============================
 from utils.header_nav import header_nav
 header_nav(current_page="sprint")
@@ -16,8 +16,8 @@ header_nav(current_page="sprint")
 def show_sprint_management():
     """
     Sprint Management page.
-    - Admin: view + CRUD all sprints.
-    - pm: view + CRUD only sprints of projects they own.
+    - Admin/Manager: view + CRUD all sprints (except deleted projects).
+    - PM: view + CRUD only sprints of projects they own (not deleted).
     """
     conn = st.connection("neon", type="sql")
     user_role = st.session_state.get("user_role")
@@ -33,17 +33,36 @@ def show_sprint_management():
         st.rerun()
 
     # ------------------------------------------------------------
-    # Fetch projects accessible to the user
+    # Fetch projects & sprints accessible to the user
     # ------------------------------------------------------------
     try:
         if user_role in ['admin', 'manager']:
-            prj_df = conn.query("SELECT project_key, project_name, owner FROM project_info;")
-            sprint_df = get_data("*", "sprint_info")
-            dim_sprint = get_data(col="sprint_name, status, project_key", table_name="dim_sprint")
+            prj_df = conn.query("""
+                SELECT project_key, project_name, owner, is_deleted
+                FROM project_info;
+            """)
+
+            sprint_df = conn.query("""
+                SELECT s.*
+                FROM sprint_info s
+                JOIN project_info p ON s.project_key = p.project_key
+                WHERE p.is_deleted = FALSE
+            """)
+
+            dim_sprint = conn.query("""
+                SELECT d.sprint_name, d.status, d.project_key
+                FROM dim_sprint d
+                JOIN project_info p ON d.project_key = p.project_key
+                WHERE p.is_deleted = FALSE
+            """)
 
         elif user_role == 'pm':
             prj_df = conn.query(
-                "SELECT project_key, project_name, owner FROM project_info WHERE owner = :owner_name;",
+                """
+                SELECT project_key, project_name, owner, is_deleted
+                FROM project_info
+                WHERE owner = :owner_name AND is_deleted = FALSE;
+                """,
                 params={"owner_name": user_name}
             )
 
@@ -63,12 +82,12 @@ def show_sprint_management():
         st.error("Error fetching projects or sprints. Check DB and `get_data`.")
         st.stop()
 
-    # Ensure dataframes exist
+    # Ensure DataFrames exist
     prj_df = prj_df if prj_df is not None else pd.DataFrame(columns=["project_key", "project_name", "owner"])
     sprint_df = sprint_df if sprint_df is not None else pd.DataFrame(columns=["sprint_name", "sprint_capacity", "project_key"])
     dim_sprint = dim_sprint if dim_sprint is not None else pd.DataFrame(columns=["sprint_name", "status", "project_key"])
 
-    # Show sprints table
+    # ===================== Sprint Table ==========================
     st.subheader("Sprint list")
     st.dataframe(sprint_df, use_container_width=True, hide_index=True)
 
@@ -78,12 +97,23 @@ def show_sprint_management():
 
     sprint_options = [format_sprint_row(r) for _, r in sprint_df.iterrows()] if not sprint_df.empty else []
 
-    # --- CRUD Actions ---
+    # ===================== CRUD Actions ==========================
     page_option = st.selectbox("Choose action:", ["Add Sprint", "Edit Sprint", "Delete Sprint"])
 
     # -------------------- Add Sprint --------------------
     if page_option == "Add Sprint":
         st.subheader("Add Sprint")
+
+        # Exclude sprints already in sprint_info
+        if not sprint_df.empty and not dim_sprint.empty:
+            existing_sprints = sprint_df[["sprint_name", "project_key"]].drop_duplicates()
+            dim_sprint = dim_sprint.merge(
+                existing_sprints,
+                on=["sprint_name", "project_key"],
+                how="left",
+                indicator=True
+            )
+            dim_sprint = dim_sprint[dim_sprint["_merge"] == "left_only"].drop(columns="_merge")
 
         if dim_sprint.empty:
             st.info("No available sprints from dim_sprint for your projects.")
