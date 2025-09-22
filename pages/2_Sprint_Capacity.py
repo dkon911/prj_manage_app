@@ -28,6 +28,8 @@ def show_sprint_management():
     if st.button("Refresh"):
         try:
             get_data.clear()
+            st.cache_data.clear()
+            st.cache_resource.clear()
         except Exception:
             pass
         st.rerun()
