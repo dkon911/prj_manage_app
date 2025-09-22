@@ -26,36 +26,30 @@ def get_user_data():
 
 
 def get_prj_data():
-    """Fetch project keys that don't have an owner.
+    """Fetch project keys that either don't have an owner or are deleted.
 
     Returns:
-        list[str]: List of project keys with no owner.
+        list[str]: List of project keys with no owner or marked as deleted.
     """
     try:
         conn = st.connection("neon", type="sql")
 
-        all_projects = conn.query("SELECT project_key FROM dim_project", ttl=1)
+        query = """
+            SELECT dp.project_key
+            FROM dim_project dp
+            LEFT JOIN project_info pi ON dp.project_key = pi.project_key
+            WHERE pi.owner IS NULL OR pi.is_deleted = TRUE
+        """
 
-        owned_projects = conn.query(
-            "SELECT project_key FROM project_info WHERE owner IS NOT NULL",
-            ttl=1
-        )
+        result = conn.query(query, ttl=1)
 
-        if not owned_projects.empty:
-            owned_keys = owned_projects['project_key'].tolist()
-            available_projects = all_projects[~all_projects['project_key'].isin(owned_keys)]
-        else:
-            available_projects = all_projects
-
-        if available_projects.empty:
+        if result.empty:
             return []
-        return available_projects['project_key'].tolist()
+        return result['project_key'].tolist()
 
     except Exception as e:
         st.error(f"Error fetching project data: {e}")
         return []
-    except Exception as e:
-        print(f"Error loading projects: {str(e)}")
 
 
 def clear_form(): 
