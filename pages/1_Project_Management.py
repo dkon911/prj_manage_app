@@ -62,7 +62,7 @@ def show_project_management():
             project_name = st.text_input("Project Name")
             total_mm = st.number_input("ManMonth (total)", min_value=0, step=1)
             project_type = st.selectbox("Project Type", ["T&M", "Fixed Price", "Other"])
-            scope = st.selectbox("Workflow Type", ["Simple Workflow", "Standard Workflow", "Complicated Workflow"])
+            scope = st.selectbox("Workflow Type", ["Workflow 1", "Workflow 2", "Workflow 3"])
             owner = st.selectbox("PM", options=owner_list, index=owner_list.index(user_name), disabled=(user_role == 'pm'))
             start_date = st.date_input("Start Date")
             end_date = st.date_input("End Date")
@@ -127,8 +127,8 @@ def show_project_management():
                     index=["T&M", "Fixed Price", "Other"].index(current_project.get("project_type", "T&M"))
                 )
                 edit_scope = st.selectbox(
-                    "Scope", ["Simple Workflow", "Standard Workflow", "Complicated Workflow"],
-                    index=["Simple Workflow", "Standard Workflow", "Complicated Workflow"].index(current_project.get("scope", "Simple Workflow"))
+                    "Scope", ["Workflow 1", "Workflow 2", "Workflow 3"],
+                    index=["Workflow 1", "Workflow 2", "Workflow 3"].index(current_project.get("scope", "Workflow 1"))
                 )
                 can_change_owner = user_role in ['admin', 'manager']
                 edit_owner = st.selectbox(
