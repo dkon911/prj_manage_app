@@ -2,13 +2,13 @@ import streamlit as st
 
 def render_header_navigation(current_page=""):
     """
-    Render header navigation with 4 main pages.
+    Render header navigation with 5 main pages.
     
     Args:
         current_page (str): Current page identifier to disable the button
-                        Options: "project", "sprint", "presales", "pcv"
+                        Options: "project", "sprint", "presales", "pcv", "workflow"
     """
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         if st.button(
@@ -16,7 +16,7 @@ def render_header_navigation(current_page=""):
             use_container_width=True,
             disabled=(current_page == "project")
         ):
-            st.switch_page("pages/1_Project_Manage.py")
+            st.switch_page("pages/1_Project_Management.py")
     
     with col2:
         if st.button(
@@ -41,6 +41,14 @@ def render_header_navigation(current_page=""):
             disabled=(current_page == "pcv")
         ):
             st.switch_page("pages/4_PCV_Assessment.py")
+
+    with col5:
+        if st.button(
+            "Workflow Management",
+            use_container_width=True,
+            disabled=(current_page == "workflow")
+        ):
+            st.switch_page("pages/6_Workflow_Management.py")
 
 def header_nav(current_page=""):
     """Render header navigation with divider line."""

@@ -5,6 +5,7 @@ from utils.getter import (
     get_data, get_user_data, get_prj_data, clear_form
 )
 from utils.getter import clear_project_cache
+import pandas as pd
 
 st.set_page_config(page_title="Project Info", page_icon="📂")
 login_form()
@@ -13,6 +14,16 @@ login_form()
 from utils.header_nav import header_nav
 header_nav(current_page="project")
 # ================================================================
+
+@st.cache_data(ttl=30)
+def get_workflow_names(_conn):
+    """Fetches all workflow names from the database."""
+    try:
+        df = _conn.query("SELECT workflow_name FROM workflow ORDER BY workflow_name;", ttl=10)
+        return df['workflow_name'].tolist()
+    except Exception:
+        # Fallback in case the table doesn't exist or there's an error
+        return ["Workflow 1", "Workflow 2", "Workflow 3"]
 
 @require_role(allowed_roles=['admin', 'manager', 'pm'])
 def show_project_management():
@@ -23,6 +34,7 @@ def show_project_management():
     
     if st.button("🔄 Refresh"):
         clear_project_cache()
+        get_workflow_names.clear()
         st.rerun()
 
     user_role = st.session_state.get("user_role")
@@ -46,15 +58,12 @@ def show_project_management():
 
     # -------------------- Role-based actions --------------------
     page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
-    # if user_role in ['admin', 'manager', 'pm']:
-    #     page_option = st.selectbox("Choose action:", ["Add Project", "Edit Project", "Delete Project"])
-    # else:
-    #     page_option = st.selectbox("Choose action:", ["Edit Project"])
 
     # -------------------- Add Project --------------------
     if page_option == "Add Project":
         owner_list = get_user_data()
         project_key_list = get_prj_data()
+        workflow_list = get_workflow_names(conn)
         st.subheader("➕ Add Project")
 
         with st.form("add_project"):
@@ -62,8 +71,8 @@ def show_project_management():
             project_name = st.text_input("Project Name")
             total_mm = st.number_input("ManMonth (total)", min_value=0, step=1)
             project_type = st.selectbox("Project Type", ["T&M", "Fixed Price", "Other"])
-            scope = st.selectbox("Workflow Type", ["Workflow 1", "Workflow 2", "Workflow 3"])
-            owner = st.selectbox("PM", options=owner_list, index=owner_list.index(user_name), disabled=(user_role == 'pm'))
+            scope = st.selectbox("Workflow Type", options=workflow_list)
+            owner = st.selectbox("PM", options=owner_list, index=owner_list.index(user_name) if user_name in owner_list else 0, disabled=(user_role == 'pm'))
             start_date = st.date_input("Start Date")
             end_date = st.date_input("End Date")
             status = st.selectbox("Status", ["Active", "In-Active", "Closed"])
@@ -110,30 +119,45 @@ def show_project_management():
     # -------------------- Edit Project --------------------
     elif page_option == "Edit Project":
         st.subheader("✏️ Edit Existing Project")
-        if not df.empty:
+        if df is not None and not df.empty:
             project_to_edit = st.selectbox("Select project to edit:", df["project_key"].tolist(), key="edit_selector")
             current_project = df[df["project_key"] == project_to_edit].iloc[0]
             owner_list = get_user_data()
+            workflow_list = get_workflow_names(conn)
 
             with st.form("edit_project"):
                 st.text_input("Project Key", value=current_project["project_key"], disabled=True)
                 edit_project_name = st.text_input("Project Name", value=current_project["project_name"])
                 edit_total_mm = st.number_input(
                     "ManMonth (total)", min_value=0, step=1, 
-                    value=int(current_project["total_mm"]) if current_project["total_mm"] else 0
+                    value=int(current_project["total_mm"]) if pd.notna(current_project["total_mm"]) else 0
                 )
                 edit_project_type = st.selectbox(
                     "Project Type", ["T&M", "Fixed Price", "Other"],
                     index=["T&M", "Fixed Price", "Other"].index(current_project.get("project_type", "T&M"))
                 )
+                
+                current_scope = current_project.get("scope")
+                try:
+                    scope_index = workflow_list.index(current_scope) if current_scope in workflow_list else 0
+                except (ValueError, TypeError):
+                    scope_index = 0
+
                 edit_scope = st.selectbox(
-                    "Scope", ["Workflow 1", "Workflow 2", "Workflow 3"],
-                    index=["Workflow 1", "Workflow 2", "Workflow 3"].index(current_project.get("scope", "Workflow 1"))
+                    "Scope", options=workflow_list,
+                    index=scope_index
                 )
                 can_change_owner = user_role in ['admin', 'manager']
+                
+                current_owner = current_project.get("owner")
+                try:
+                    owner_index = owner_list.index(current_owner) if current_owner in owner_list else 0
+                except (ValueError, TypeError):
+                    owner_index = 0
+                
                 edit_owner = st.selectbox(
                     "Owner", options=owner_list,
-                    index=owner_list.index(current_project.get("owner", owner_list[0])),
+                    index=owner_index,
                     disabled=(not can_change_owner)
                 )
                 edit_start_date = st.date_input("Start Date", value=current_project["start_date"])
@@ -171,7 +195,7 @@ def show_project_management():
     # -------------------- Delete Project (Soft Delete) --------------------
     elif page_option == "Delete Project":
         st.subheader("🗑 Delete Project")
-        if not df.empty:
+        if df is not None and not df.empty:
             project_to_delete = st.selectbox("Select project to delete:", df["project_key"].tolist())
             if st.button("Delete project"):
                 with conn.session as session:
