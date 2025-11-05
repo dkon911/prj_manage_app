@@ -42,10 +42,10 @@ def show_project_management():
 
     # -------------------- Load project data --------------------
     if user_role in ['admin', 'manager']:
-        df = get_data("project_key, project_name, total_mm, project_type, scope, status, owner, start_date, end_date, created_at, updated_at", "project_info WHERE is_deleted = FALSE")
+        df = get_data("project_key, project_name, total_mm, project_type, scope, status, owner, start_date, end_date, created_at, updated_at", "dim_project WHERE owner IS NOT NULL AND is_deleted = FALSE")
     else:  # pm
         df = conn.query(
-            "SELECT project_key, project_name, total_mm, project_type, scope, owner, status, start_date, end_date, created_at, updated_at FROM project_info WHERE is_deleted = FALSE AND owner = :user_name",
+            "SELECT project_key, project_name, total_mm, project_type, scope, owner, status, start_date, end_date, created_at, updated_at FROM dim_project WHERE is_deleted = FALSE AND owner = :user_name",
             params={"user_name": user_name}
         )
 
@@ -85,7 +85,7 @@ def show_project_management():
                     with conn.session as session:
                         session.execute(
                             text('''
-                                INSERT INTO project_info (
+                                INSERT INTO dim_project (
                                     project_key, project_name, total_mm, project_type, scope,
                                     owner, start_date, end_date, status, is_deleted
                                 )
@@ -132,9 +132,18 @@ def show_project_management():
                     "ManMonth (total)", min_value=0, step=1, 
                     value=int(current_project["total_mm"]) if pd.notna(current_project["total_mm"]) else 0
                 )
+
+                # Safer handling for project_type
+                project_type_options = ["T&M", "Fixed Price", "Other", "None"]
+                current_project_type = current_project.get("project_type")
+                try:
+                    project_type_index = project_type_options.index(current_project_type)
+                except (ValueError, TypeError):
+                    project_type_index = 0 # Default to first item if not found
+
                 edit_project_type = st.selectbox(
-                    "Project Type", ["T&M", "Fixed Price", "Other"],
-                    index=["T&M", "Fixed Price", "Other"].index(current_project.get("project_type", "T&M"))
+                    "Project Type", project_type_options,
+                    index=project_type_index
                 )
                 
                 current_scope = current_project.get("scope")
@@ -162,9 +171,18 @@ def show_project_management():
                 )
                 edit_start_date = st.date_input("Start Date", value=current_project["start_date"])
                 edit_end_date = st.date_input("End Date", value=current_project["end_date"])
+                
+                # Safer handling for status
+                status_options = ["Active", "In-Active", "Closed"]
+                current_status = current_project.get("status")
+                try:
+                    status_index = status_options.index(current_status)
+                except (ValueError, TypeError):
+                    status_index = 0 # Default to first item if not found
+
                 edit_status = st.selectbox(
-                    "Status", ["Active", "In-Active", "Closed"],
-                    index=["Active", "In-Active", "Closed"].index(current_project.get("status", "Active"))
+                    "Status", status_options,
+                    index=status_index
                 )
 
                 if st.form_submit_button("Update Project"):
@@ -174,7 +192,7 @@ def show_project_management():
                         with conn.session as session:
                             session.execute(
                                 text('''
-                                    UPDATE project_info 
+                                    UPDATE dim_project 
                                     SET project_name = :project_name, total_mm = :total_mm,
                                         project_type = :project_type, scope = :scope, owner = :owner,
                                         start_date = :start_date, end_date = :end_date, status = :status
@@ -200,7 +218,7 @@ def show_project_management():
             if st.button("Delete project"):
                 with conn.session as session:
                     session.execute(
-                        text("UPDATE project_info SET is_deleted = TRUE WHERE project_key = :project_key"),
+                        text("UPDATE dim_project SET is_deleted = TRUE WHERE project_key = :project_key"),
                         {"project_key": project_to_delete}
                     )
                     session.commit()

@@ -35,10 +35,9 @@ def get_prj_data():
         conn = st.connection("neon", type="sql")
 
         query = """
-            SELECT dp.project_key
-            FROM dim_project dp
-            LEFT JOIN project_info pi ON dp.project_key = pi.project_key
-            WHERE pi.owner IS NULL OR pi.is_deleted = TRUE
+            SELECT project_key
+            FROM dim_project
+            WHERE owner IS NULL OR is_deleted = TRUE
         """
 
         result = conn.query(query, ttl=1)

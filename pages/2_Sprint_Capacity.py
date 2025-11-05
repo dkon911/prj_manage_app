@@ -41,20 +41,20 @@ def show_sprint_management():
         if user_role in ['admin', 'manager']:
             prj_df = conn.query("""
                 SELECT project_key, project_name, owner, is_deleted
-                FROM project_info;
+                FROM dim_project;
             """)
 
             sprint_df = conn.query("""
                 SELECT s.*
                 FROM sprint_info s
-                JOIN project_info p ON s.project_key = p.project_key
+                JOIN dim_project p ON s.project_key = p.project_key
                 WHERE p.is_deleted = FALSE
             """)
 
             dim_sprint = conn.query("""
                 SELECT d.sprint_name, d.status, d.project_key
                 FROM dim_sprint d
-                JOIN project_info p ON d.project_key = p.project_key
+                JOIN dim_project p ON d.project_key = p.project_key
                 WHERE p.is_deleted = FALSE
             """)
 
@@ -62,7 +62,7 @@ def show_sprint_management():
             prj_df = conn.query(
                 """
                 SELECT project_key, project_name, owner, is_deleted
-                FROM project_info
+                FROM dim_project
                 WHERE owner = :owner_name AND is_deleted = FALSE;
                 """,
                 params={"owner_name": user_name}
