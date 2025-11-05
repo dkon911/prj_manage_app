@@ -211,3 +211,4 @@ utils/__pycache__/getter.cpython-310.pyc
 
 sql/
 .env
+.streamlit/secrets.toml
