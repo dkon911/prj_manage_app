@@ -30,7 +30,7 @@ def get_pcv_data(project_filter="All", division_filter="All", limit=50):
                     fm.assessment_date,
                     fm.updated_at
                 FROM fact_pcv_metrics fm
-                JOIN project_info pi ON fm.project_key = pi.project_key
+                JOIN dim_project pi ON fm.project_key = pi.project_key
                 WHERE 1=1
             """
         else:
@@ -44,7 +44,7 @@ def get_pcv_data(project_filter="All", division_filter="All", limit=50):
                     fm.assessment_date,
                     fm.updated_at
                 FROM fact_pcv_metrics fm
-                JOIN project_info pi ON fm.project_key = pi.project_key
+                JOIN dim_project pi ON fm.project_key = pi.project_key
                 WHERE 1=1
             """
         
@@ -75,7 +75,7 @@ def get_active_projects():
             SELECT DISTINCT 
                 project_key,
                 project_name
-            FROM project_info
+            FROM dim_project
             WHERE status = 'Active'
             ORDER BY project_key
         """
