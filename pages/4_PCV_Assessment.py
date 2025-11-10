@@ -124,7 +124,7 @@ def show_pcv_page():
     # --- Get projects for the current user ---
     owned_project_keys = []
     if user_role == 'pm':
-        owned_projects_df = conn.query("SELECT project_key FROM project_info WHERE owner = :owner_email;", params={"owner_email": user_name})
+        owned_projects_df = conn.query("SELECT project_key FROM dim_project WHERE owner = :owner_email;", params={"owner_email": user_name})
         if not owned_projects_df.empty:
             owned_project_keys = owned_projects_df['project_key'].tolist()
 
