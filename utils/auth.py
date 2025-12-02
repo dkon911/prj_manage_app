@@ -55,6 +55,9 @@ def login_form():
     Manages login state and logout.
     """
     cookies = st_cookies.CookieManager()
+    if not cookies.ready():
+        st.stop()
+
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
         st.session_state.user_email = ""
